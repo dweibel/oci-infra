@@ -1,0 +1,49 @@
+# OCI Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+
+# OCI Provider Configuration
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+user_ocid        = "ocid1.user.oc1..aaaaaaaXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+fingerprint      = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "us-ashburn-1"
+compartment_id   = "ocid1.compartment.oc1..aaaaaaaXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+# General Configuration
+name_prefix = "agent-coder"
+environment = "dev"
+
+# Network Configuration
+vcn_cidr    = "10.0.0.0/16"
+subnet_cidr = "10.0.1.0/24"
+
+# Replace with your IP address (get it from https://ifconfig.me)
+allowed_ssh_cidrs  = ["1.2.3.4/32"]
+allowed_http_cidrs = ["1.2.3.4/32"]
+
+# Compute Configuration
+availability_domain      = ""  # Leave empty to use first available
+instance_shape           = "VM.Standard.A1.Flex"
+instance_ocpus           = 2
+instance_memory_gb       = 12
+workspace_volume_size_gb = 40
+workspace_mount_path     = "/mnt/workspace"
+
+# SSH public key (contents of ~/.ssh/oci_agent_coder.pub)
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX user@host"
+
+# Application Configuration
+aws_region       = "us-east-1"
+ecr_registry     = "123456789012.dkr.ecr.us-east-1.amazonaws.com"
+s3_bucket        = "agent-coder-workspace-123456789012"
+bedrock_model_id = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+log_format       = "json"
+app_port         = 8080
+max_iterations   = 10
+iteration_timeout = 300
+
+# Logging Configuration
+log_retention_days = 30
+
+# Monitoring Configuration
+alert_email = "your-email@example.com"

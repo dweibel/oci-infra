@@ -1,0 +1,129 @@
+#cloud-config
+# Cloud-init configuration for agent-coder VM
+
+packages:
+  - podman
+  - podman-compose
+  - jq
+  - git
+
+write_files:
+  - path: /opt/agent-coder/.env.template
+    permissions: '0600'
+    owner: opc:opc
+    content: |
+      AWS_ACCESS_KEY_ID=REPLACE_WITH_YOUR_ACCESS_KEY
+      AWS_SECRET_ACCESS_KEY=REPLACE_WITH_YOUR_SECRET_KEY
+      AWS_REGION=${aws_region}
+      S3_BUCKET=${s3_bucket}
+      WORKSPACE_PATH=/workspace
+      PORT=${app_port}
+      LOG_FORMAT=${log_format}
+      BEDROCK_MODEL_ID=${bedrock_model_id}
+      MAX_ITERATIONS=${max_iterations}
+      ITERATION_TIMEOUT=${iteration_timeout}
+
+  - path: /etc/systemd/system/format-workspace-volume.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Format and mount workspace volume
+      After=cloud-init.service
+      Before=multi-user.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/format-workspace-volume.sh
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /usr/local/bin/format-workspace-volume.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+      
+      # Find the attached volume device
+      DEVICE=$(lsblk -o NAME,SERIAL -n | grep -v "^sda" | awk '{print "/dev/"$1}' | head -n1)
+      
+      if [ -z "$DEVICE" ]; then
+        echo "No additional block device found"
+        exit 1
+      fi
+      
+      # Check if already formatted
+      if ! blkid "$DEVICE"; then
+        echo "Formatting $DEVICE as ext4..."
+        mkfs.ext4 -F "$DEVICE"
+      fi
+      
+      # Create mount point
+      mkdir -p ${workspace_mount_path}
+      
+      # Mount the volume
+      if ! mountpoint -q ${workspace_mount_path}; then
+        mount "$DEVICE" ${workspace_mount_path}
+        echo "$DEVICE ${workspace_mount_path} ext4 defaults,nofail 0 2" >> /etc/fstab
+      fi
+      
+      # Set ownership
+      chown -R opc:opc ${workspace_mount_path}
+      chmod 755 ${workspace_mount_path}
+
+  - path: /etc/sysctl.d/99-swap.conf
+    permissions: '0644'
+    content: |
+      vm.swappiness=1
+
+runcmd:
+  # Install AWS CLI v2 for ARM64
+  - curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "/tmp/awscliv2.zip"
+  - unzip -q /tmp/awscliv2.zip -d /tmp
+  - /tmp/aws/install
+  - rm -rf /tmp/aws /tmp/awscliv2.zip
+
+  # Create application directory
+  - mkdir -p /opt/agent-coder
+  - chown -R opc:opc /opt/agent-coder
+
+  # Copy template to actual .env file
+  - cp /opt/agent-coder/.env.template /opt/agent-coder/.env
+  - chown opc:opc /opt/agent-coder/.env
+
+  # Configure swap (4 GB)
+  - dd if=/dev/zero of=/swapfile bs=1M count=4096
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+  # Configure Podman log rotation
+  - mkdir -p /etc/containers
+  - |
+    cat > /etc/containers/containers.conf <<EOF
+    [engine]
+    events_logger = "journald"
+    log_driver = "journald"
+    EOF
+
+  # Enable and start format-workspace-volume service
+  - systemctl daemon-reload
+  - systemctl enable format-workspace-volume.service
+  - systemctl start format-workspace-volume.service
+
+  # Configure journald for structured logging
+  - |
+    cat >> /etc/systemd/journald.conf <<EOF
+    
+    # Agent-coder logging configuration
+    MaxRetentionSec=7day
+    MaxFileSec=1day
+    EOF
+  - systemctl restart systemd-journald
+
+  # Enable lingering for opc user (allows user services to run without login)
+  - loginctl enable-linger opc
+
+final_message: "Agent-coder VM initialization complete. Configure AWS credentials in /opt/agent-coder/.env and set up systemd service."
