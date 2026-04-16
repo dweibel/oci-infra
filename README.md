@@ -133,6 +133,39 @@ MCP_ENABLE_WRITES=false
 
 **Important**: Never commit the `.env` file to version control. It is included in `.gitignore` by default.
 
+## SSH Access
+
+All remote operations use key-based SSH authentication. The default configuration:
+
+| Setting       | Value                          |
+|---------------|--------------------------------|
+| User          | `opc`                          |
+| Host          | `<OCI_INSTANCE_IP>`            |
+| Key           | `~/.ssh/oci_agent_coder`       |
+
+Example connection:
+
+```bash
+ssh -i ~/.ssh/oci_agent_coder opc@<OCI_INSTANCE_IP>
+```
+
+To run the keep-alive patch remotely:
+
+```bash
+ssh -i ~/.ssh/oci_agent_coder opc@<OCI_INSTANCE_IP> 'bash -s' < scripts/deploy-keep-alive.sh
+```
+
+**Tip**: Add an entry to `~/.ssh/config` to simplify access:
+
+```
+Host oci-agent
+    HostName <OCI_INSTANCE_IP>
+    User opc
+    IdentityFile ~/.ssh/oci_agent_coder
+```
+
+Then connect with just `ssh oci-agent`.
+
 ## ARM64 Architecture
 
 This repository enforces ARM64 architecture for all OCI deployments to leverage the Always Free tier:
@@ -172,6 +205,18 @@ Comprehensive cleanup script for OCI resources.
   --compartment-id    OCI compartment OCID (required)
   --force             Skip confirmation prompt
   --sweep             Scan for orphaned resources
+```
+
+### deploy-keep-alive.sh
+
+Patches the running keep-alive container in-place without rebuilding or affecting other containers. Handles containers in any state (created, stopped, running).
+
+```bash
+# Run locally on the OCI instance
+./scripts/deploy-keep-alive.sh
+
+# Run remotely via SSH
+ssh -i ~/.ssh/oci_agent_coder opc@<OCI_INSTANCE_IP> 'bash -s' < scripts/deploy-keep-alive.sh
 ```
 
 ### deploy-wikijs.sh
