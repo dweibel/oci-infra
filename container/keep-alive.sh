@@ -4,7 +4,7 @@ while true; do
     if [ -z "$CPU_USAGE" ]; then CPU_USAGE=0; fi
     if [ "$CPU_USAGE" -lt 15 ]; then
         echo "CPU usage ${CPU_USAGE}% - running stress-ng"
-        stress-ng --cpu 1 --timeout 118s --cpu-load 80
+        stress-ng --cpu 2 --timeout 118s --cpu-load 50
     else
         echo "CPU usage ${CPU_USAGE}% - skipping stress-ng"
     fi

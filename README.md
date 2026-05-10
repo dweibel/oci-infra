@@ -32,7 +32,8 @@ oci-infra/
 │   │   ├── oci-compute/
 │   │   ├── oci-network/
 │   │   ├── oci-logging/
-│   │   └── oci-monitoring/
+│   │   ├── oci-monitoring/
+│   │   └── oci-backup/
 │   ├── main.tf
 │   ├── variables.tf
 │   ├── outputs.tf
@@ -41,13 +42,16 @@ oci-infra/
 │   ├── oci-cleanup.sh
 │   ├── oci-instance-retry.sh
 │   ├── deploy-wikijs.sh
-│   ├── refresh-ecr-login.sh
+│   ├── deploy-keep-alive.sh
+│   ├── backup-wikijs.sh
+│   ├── deploy-backup-cron.sh
 │   └── verify-secrets.sh
 ├── docs/               # Documentation
 │   ├── architecture.md
 │   ├── deployment-guide.md
 │   └── migration-guide.md
-├── .env.example        # Environment variable template
+├── .env.example        # Environment variable template (documented)
+├── .env                # Your local secrets (git-ignored)
 ├── .gitignore          # Git ignore patterns
 └── README.md           # This file
 ```
@@ -108,30 +112,67 @@ oci-infra/
 
 ## Environment Configuration
 
-All sensitive configuration is managed through a `.env` file. Copy `.env.example` to `.env` and populate with your values:
+All sensitive configuration is managed through a `.env` file at the repository root. This file is git-ignored and should never be committed.
 
 ```bash
-# OCI Authentication
-OCI_TENANCY_OCID=ocid1.tenancy.oc1...
-OCI_USER_OCID=ocid1.user.oc1...
-OCI_FINGERPRINT=xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx
-OCI_PRIVATE_KEY_PATH=/path/to/oci_api_key.pem
-OCI_REGION=us-ashburn-1
-
-# Compartment Configuration
-OCI_COMPARTMENT_OCID=ocid1.compartment.oc1...
-
-# Wiki.js Configuration
-WIKI_ADMIN_EMAIL=admin@example.com
-WIKI_ADMIN_PASSWORD=secure_password_here
-POSTGRES_PASSWORD=secure_db_password_here
-
-# MCP Server Configuration
-MCP_ADMIN_TOKEN=secure_token_here
-MCP_ENABLE_WRITES=false
+cp .env.example .env
+# Edit .env with your values
 ```
 
-**Important**: Never commit the `.env` file to version control. It is included in `.gitignore` by default.
+The `.env` file contains four groups of settings:
+
+### OCI Instance Connection
+
+| Variable | Description | Default |
+|---|---|---|
+| `OCI_INSTANCE_IP` | Public IP of the OCI compute instance | _(required)_ |
+| `OCI_SSH_KEY` | Path to SSH private key | `~/.ssh/oci_agent_coder` |
+| `OCI_SSH_USER` | SSH username | `opc` |
+
+### OCI Object Storage (Backup)
+
+| Variable | Description | Default |
+|---|---|---|
+| `OCI_NAMESPACE` | Object Storage namespace (tenancy-level) | _(required)_ |
+| `OCI_REGION` | OCI region | `us-ashburn-1` |
+| `OCI_S3_ACCESS_KEY` | Customer Secret Key — access key | _(required for backups)_ |
+| `OCI_S3_SECRET_KEY` | Customer Secret Key — secret | _(required for backups)_ |
+| `OCI_BACKUP_BUCKET` | Backup bucket name | `agent-coder-dev-backups` |
+
+To create a Customer Secret Key: OCI Console → Identity → Users → your user → Customer Secret Keys → Generate.
+
+To find your namespace: `oci os ns get --query 'data' --raw-output`
+
+### AWS Credentials (Instance)
+
+Credentials used on the OCI instance for ECR image pulls, S3 workspace storage, and Bedrock API access. Must be re-deployed after any boot volume re-image.
+
+| Variable | Description | Default |
+|---|---|---|
+| `AWS_ACCESS_KEY_ID` | IAM user access key | _(required)_ |
+| `AWS_SECRET_ACCESS_KEY` | IAM user secret key | _(required)_ |
+| `AWS_REGION` | AWS region for ECR and Bedrock | `us-east-1` |
+| `AWS_ECR_REGISTRY` | ECR registry URL | _(required)_ |
+| `AWS_S3_BUCKET` | S3 bucket for workspace storage | _(required)_ |
+
+Deploy to the instance:
+
+```bash
+source .env
+ssh oci-agent "aws configure set aws_access_key_id '${AWS_ACCESS_KEY_ID}'"
+ssh oci-agent "aws configure set aws_secret_access_key '${AWS_SECRET_ACCESS_KEY}'"
+ssh oci-agent "aws configure set region '${AWS_REGION}'"
+```
+
+### Wiki.js Configuration
+
+Wiki.js-specific secrets (admin credentials, API keys, OpenRouter key, database password) live in the `wikijs-infra` repository's `.env` file. See `wikijs-infra/.env.example` for details.
+| `API_KEY_RW` | Read-write API gateway key | _(optional)_ |
+| `WIKI_ADMIN_TOKEN` | Wiki.js admin JWT | _(required if RW set)_ |
+
+Terraform has its own configuration in `terraform/terraform.tfvars` (see `terraform/terraform.tfvars.example`).
+
+**Important**: Never commit `.env` or `terraform.tfvars` to version control. Both are included in `.gitignore`.
 
 ## SSH Access
 
@@ -178,9 +219,15 @@ Any attempt to use non-ARM64 shapes will be rejected with a descriptive error me
 
 ## Documentation
 
-- **[Architecture Guide](docs/architecture.md)**: System architecture and component interactions
-- **[Deployment Guide](docs/deployment-guide.md)**: Detailed deployment instructions and examples
-- **[Migration Guide](docs/migration-guide.md)**: Migrating from agent-infra repository
+See [docs/README.md](docs/README.md) for the full documentation index.
+
+- [SSH Commands Reference](docs/SSH-COMMANDS.md) — Container access, health checks, log viewing, SSH tunnels
+- [Backup and Restore](docs/BACKUP.md) — Backup schedule, restore procedures, troubleshooting
+- [Data Loss Mitigation](docs/dataloss-mitigation.md) — Block volume strategy, Terraform safety guards, recovery checklist
+- [Data Loss Lessons Learned](docs/dataloss-lessons-learned.md) — April 2026 incident postmortem
+- [Architecture Guide](docs/architecture.md) — System architecture and component interactions
+- [Deployment Guide](docs/deployment-guide.md) — Detailed deployment instructions and examples
+- [Migration Guide](docs/migration-guide.md) — Migrating from agent-infra repository
 
 ## Scripts
 
@@ -229,6 +276,38 @@ Deploys Wiki.js with PostgreSQL and MCP server in a podman pod.
   --port              Wiki.js port (default: 3000)
   --enable-writes     Enable write operations (requires admin token)
 ```
+
+### backup-wikijs.sh
+
+Backs up the Wiki.js PostgreSQL database and assets volume to OCI Object Storage via the S3-compatible API. Uses the AWS CLI with a dedicated `oci` profile — no OCI CLI required.
+
+```bash
+./scripts/backup-wikijs.sh                     # full backup (db + assets)
+./scripts/backup-wikijs.sh --db-only           # database only
+./scripts/backup-wikijs.sh --assets-only       # assets volume only
+./scripts/backup-wikijs.sh --list              # list existing backups
+./scripts/backup-wikijs.sh --restore-db <file> # restore from backup
+```
+
+Backups are stored in the OCI Object Storage bucket under `wikijs/db/` and `wikijs/assets/`. The bucket lifecycle policy auto-deletes backups older than 30 days. Local backups are pruned after 7 days.
+
+### deploy-backup-cron.sh
+
+Deploys the backup script and installs a daily cron job on the OCI instance. Configures the AWS CLI `oci` profile with your Customer Secret Key for S3-compatible access.
+
+```bash
+# Source .env and deploy remotely
+source .env
+./scripts/deploy-backup-cron.sh --remote oci-agent
+
+# Custom schedule (every 6 hours)
+./scripts/deploy-backup-cron.sh --remote oci-agent --schedule "0 */6 * * *"
+
+# Remove the cron job
+./scripts/deploy-backup-cron.sh --remote oci-agent --remove
+```
+
+Requires `OCI_S3_ACCESS_KEY`, `OCI_S3_SECRET_KEY`, and `OCI_NAMESPACE` from `.env`.
 
 ### refresh-ecr-login.sh
 

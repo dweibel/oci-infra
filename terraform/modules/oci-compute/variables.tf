@@ -28,6 +28,12 @@ variable "instance_shape" {
   default     = "VM.Standard.A1.Flex"
 }
 
+variable "image_id" {
+  description = "Fixed OCID of the Oracle Linux ARM64 image. When set, the dynamic image lookup is bypassed. Update deliberately when upgrading the OS."
+  type        = string
+  default     = ""
+}
+
 variable "instance_ocpus" {
   description = "Number of OCPUs for the instance"
   type        = number

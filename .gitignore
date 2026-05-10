@@ -1,0 +1,23 @@
+# Secrets
+.env
+.env.secrets
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+
+# Script artifacts
+scripts/.cloud-init-generated.yaml
+scripts/.ssh-key-tmp
+scripts/.oci-retry-state
+scripts/oci-retry.log
+scripts/oci-cleanup.log
+
+#Kiro
+.kiro
+
+# OS
+.DS_Store
+Thumbs.db

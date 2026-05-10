@@ -24,6 +24,9 @@ allowed_http_cidrs = ["1.2.3.4/32"]
 # Compute Configuration
 availability_domain      = ""  # Leave empty to use first available
 instance_shape           = "VM.Standard.A1.Flex"
+# Pin the image OCID to prevent Terraform from re-imaging the boot volume.
+# Find current image: oci compute image list --compartment-id <id> --operating-system "Oracle Linux" --operating-system-version "8" --shape VM.Standard.A1.Flex --sort-by TIMECREATED --sort-order DESC --query 'data[0].id'
+image_id                 = ""
 instance_ocpus           = 2
 instance_memory_gb       = 12
 workspace_volume_size_gb = 40
@@ -47,3 +50,10 @@ log_retention_days = 30
 
 # Monitoring Configuration
 alert_email = "your-email@example.com"
+
+# Object Storage Configuration (for backups)
+# Find via: oci os ns get --query 'data' --raw-output
+object_storage_namespace = "your-namespace-here"
+
+# Backup Configuration
+backup_retention_days = 30

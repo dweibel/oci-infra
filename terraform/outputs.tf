@@ -74,3 +74,14 @@ output "invocation_url" {
   description = "URL for invocation endpoint"
   value       = "http://${module.compute.instance_public_ip}:${var.app_port}/invocations"
 }
+
+# Backup Outputs
+output "backup_bucket_name" {
+  description = "Name of the backup Object Storage bucket"
+  value       = module.backup.bucket_name
+}
+
+output "backup_s3_endpoint" {
+  description = "S3-compatible endpoint for backup uploads"
+  value       = module.backup.s3_endpoint
+}

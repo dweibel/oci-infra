@@ -87,6 +87,12 @@ variable "instance_shape" {
   default     = "VM.Standard.A1.Flex"
 }
 
+variable "image_id" {
+  description = "Fixed OCID of the Oracle Linux ARM64 image. Bypasses dynamic lookup when set."
+  type        = string
+  default     = ""
+}
+
 variable "instance_ocpus" {
   description = "Number of OCPUs for the instance"
   type        = number
@@ -180,4 +186,17 @@ variable "log_retention_days" {
 variable "alert_email" {
   description = "Email address for alert notifications"
   type        = string
+}
+
+# Object Storage Configuration
+variable "object_storage_namespace" {
+  description = "OCI Object Storage namespace (tenancy-level, find via: oci os ns get)"
+  type        = string
+}
+
+# Backup Configuration
+variable "backup_retention_days" {
+  description = "Number of days to retain backups in Object Storage"
+  type        = number
+  default     = 30
 }

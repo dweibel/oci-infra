@@ -51,6 +51,7 @@ module "compute" {
   subnet_id                = module.network.subnet_id
   availability_domain      = var.availability_domain
   instance_shape           = var.instance_shape
+  image_id                 = var.image_id
   instance_ocpus           = var.instance_ocpus
   instance_memory_gb       = var.instance_memory_gb
   ssh_public_key           = var.ssh_public_key
@@ -78,6 +79,19 @@ module "logging" {
   instance_id          = module.compute.instance_id
   log_retention_days   = var.log_retention_days
   tags                 = local.common_tags
+}
+
+# Backup Module
+module "backup" {
+  source = "./modules/oci-backup"
+
+  compartment_id           = var.compartment_id
+  object_storage_namespace = var.object_storage_namespace
+  name_prefix              = "${var.name_prefix}-${var.environment}"
+  region                   = var.region
+  dynamic_group_name       = module.logging.dynamic_group_name
+  retention_days           = var.backup_retention_days
+  tags                     = local.common_tags
 }
 
 # Monitoring Module

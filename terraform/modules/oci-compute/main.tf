@@ -27,7 +27,7 @@ resource "oci_core_instance" "main" {
 
   source_details {
     source_type             = "image"
-    source_id               = data.oci_core_images.oracle_linux_arm.images[0].id
+    source_id               = var.image_id != "" ? var.image_id : data.oci_core_images.oracle_linux_arm.images[0].id
     boot_volume_size_in_gbs = var.boot_volume_size_gb
   }
 
@@ -54,11 +54,14 @@ resource "oci_core_instance" "main" {
 
   freeform_tags = var.tags
 
-  # Ignore metadata changes to prevent instance replacement when
-  # the instance was created via OCI CLI (retry script) and imported.
-  # user_data and ssh_authorized_keys formatting can differ slightly.
   lifecycle {
-    ignore_changes = [metadata, defined_tags, create_vnic_details[0].defined_tags]
+    prevent_destroy = true
+    ignore_changes = [
+      metadata,
+      source_details,
+      defined_tags,
+      create_vnic_details[0].defined_tags,
+    ]
   }
 }
 
@@ -68,6 +71,10 @@ resource "oci_core_volume" "workspace" {
   display_name        = "${var.name_prefix}-workspace-volume"
   size_in_gbs         = var.workspace_volume_size_gb
   freeform_tags       = var.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "oci_core_volume_attachment" "workspace" {

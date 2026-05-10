@@ -25,6 +25,7 @@ extra_ports        = [3000, 3001]
 # Compute Configuration
 availability_domain = "fBMf:US-ASHBURN-AD-1"
 instance_shape           = "VM.Standard.A1.Flex"  # ARM64 Always Free instance
+image_id                 = "ocid1.image.oc1.iad.aaaaaaaa7rtkzacfo6f6ki6pw6pvzbntzaeib7z2fsrcrmncip2emzbwb7rq"  # Oracle Linux 8 ARM64 — pinned to prevent drift
 instance_ocpus           = 4
 instance_memory_gb       = 24
 boot_volume_size_gb      = 150
@@ -49,3 +50,9 @@ log_retention_days = 30
 
 # Monitoring Configuration
 alert_email = "dirk.weibel@gmail.com"
+
+# Object Storage Configuration (for backups)
+object_storage_namespace = "idxfevuczdaz"
+
+# Backup Configuration
+backup_retention_days = 30

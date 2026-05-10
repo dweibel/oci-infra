@@ -199,6 +199,36 @@ ssh oci-agent "systemctl --user restart actions-runner"
 ssh oci-agent "systemctl --user stop actions-runner"
 ```
 
+## Cloudflare Tunnel
+
+### cloudflared (systemd service — exposes services via Cloudflare Zero Trust)
+
+#### Published Routes
+
+Routes are managed in the Cloudflare Zero Trust dashboard (token-based tunnel):
+
+| Public Hostname | Origin |
+|----------------|--------|
+| `goose.dirkweibel.dev` | `http://localhost:7681` |
+| `hermes.dirkweibel.dev` | `http://localhost:9119` |
+| `hermes-api.dirkweibel.dev` | `http://localhost:8081` |
+
+#### Management Commands
+
+```bash
+# Service status
+ssh oci-agent "systemctl status cloudflared --no-pager"
+
+# Follow logs
+ssh oci-agent "journalctl -u cloudflared -f"
+
+# Restart
+ssh oci-agent "sudo systemctl restart cloudflared"
+
+# Install / reinstall (pass tunnel token as argument)
+ssh oci-agent 'bash -s' < scripts/setup-cloudflared.sh <TUNNEL_TOKEN>
+```
+
 ## System Health
 
 ```bash

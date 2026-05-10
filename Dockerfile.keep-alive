@@ -1,8 +1,9 @@
 FROM arm64v8/alpine:latest
 
-RUN apk add --no-cache curl stress-ng procps
+RUN apk add --no-cache curl stress-ng procps tini
 
 COPY container/keep-alive.sh /keep-alive.sh
 RUN chmod +x /keep-alive.sh
 
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["/keep-alive.sh"]

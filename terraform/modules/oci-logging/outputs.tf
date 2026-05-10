@@ -24,3 +24,8 @@ output "uma_config_id" {
   description = "OCID of the Unified Monitoring Agent configuration"
   value       = oci_logging_unified_agent_configuration.main.id
 }
+
+output "dynamic_group_name" {
+  description = "Name of the dynamic group"
+  value       = oci_identity_dynamic_group.instance.name
+}
