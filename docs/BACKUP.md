@@ -2,7 +2,7 @@
 
 ## Overview
 
-Wiki.js data is backed up daily to OCI Object Storage via the S3-compatible API. Backups include the PostgreSQL database and the Wiki.js assets volume (uploads, content). Local copies are staged on the block volume.
+Wiki.js and Hermes data are backed up daily to OCI Object Storage via the S3-compatible API. Wiki.js backups include the PostgreSQL database and assets volume. Hermes backups include the data directory and config files. Local copies are staged on the block volume.
 
 All persistent data lives on the 50 GB block volume (`/mnt/workspace`), which survives boot volume re-images and instance terminations.
 
@@ -12,13 +12,15 @@ All persistent data lives on the 50 GB block volume (`/mnt/workspace`), which su
 |---|---|---|---|
 | PostgreSQL database | `wikijs-postgres` container | `pg_dump` gzipped SQL | ~10 KB (fresh), grows with content |
 | Wiki.js assets | `/mnt/workspace/wikijs/assets/` | tar.gz archive | Depends on uploads |
+| Hermes data | `/mnt/workspace/hermes/` (entire dir, excl. `.env`) | tar.gz archive | Sessions, config, agent state |
 
 ## Storage
 
 | Location | Retention | Purpose |
 |---|---|---|
 | OCI Object Storage (`agent-coder-dev-backups`) | 30 days (lifecycle policy) | Primary offsite backup |
-| Block volume (`/mnt/workspace/backups/wikijs/`) | 7 days (local prune) | Fast local restore |
+| Block volume (`/mnt/workspace/backups/wikijs/`) | 7 days (local prune) | Fast local restore (Wiki.js) |
+| Block volume (`/mnt/workspace/backups/hermes/`) | 7 days (local prune) | Fast local restore (Hermes) |
 
 ## Schedule
 
@@ -28,7 +30,9 @@ Verify the cron is installed:
 
 ```bash
 ssh oci-agent "crontab -l"
-# Expected: 0 8 * * * WIKIJS_BACKUP_BUCKET=agent-coder-dev-backups /home/opc/scripts/backup-wikijs.sh >> /mnt/workspace/backups/wikijs/backup.log 2>&1 # wikijs-backup
+# Expected:
+# 0 8 * * * WIKIJS_BACKUP_BUCKET=agent-coder-dev-backups /home/opc/scripts/backup-wikijs.sh >> /mnt/workspace/backups/wikijs/backup.log 2>&1 # wikijs-backup
+# 0 8 * * * HERMES_BACKUP_BUCKET=agent-coder-dev-backups /home/opc/scripts/backup-hermes.sh >> /mnt/workspace/backups/hermes/backup.log 2>&1 # hermes-backup
 ```
 
 ## Scripts
@@ -60,9 +64,26 @@ Located at `/home/opc/scripts/backup-wikijs.sh` on the instance and `scripts/bac
 /home/opc/scripts/backup-wikijs.sh --restore-db s3://agent-coder-dev-backups/wikijs/db/wikijs-db-YYYYMMDD-HHMMSS.sql.gz
 ```
 
+### backup-hermes.sh
+
+Located at `/home/opc/scripts/backup-hermes.sh` on the instance and `scripts/backup-hermes.sh` in the repo.
+
+Backs up the entire `/mnt/workspace/hermes/` directory (the container's `$HOME`/`/opt/data` bind mount), excluding `.env`. This captures `data/`, `config.yaml`, `auth.json`, `.hermes/`, and any other state the container writes.
+
+```bash
+# Full backup to OCI Object Storage
+/home/opc/scripts/backup-hermes.sh
+
+# Local backup only (no OCI upload, no credentials needed)
+/home/opc/scripts/backup-hermes.sh --target local
+
+# List all backups (local + OCI)
+/home/opc/scripts/backup-hermes.sh --list
+```
+
 ### deploy-backup-cron.sh
 
-Installs the backup script and cron job on the instance. Configures the AWS CLI `oci` profile for S3-compatible access.
+Installs both backup scripts and cron jobs on the instance. Configures the AWS CLI `oci` profile for S3-compatible access.
 
 ```bash
 source .env
@@ -71,7 +92,7 @@ source .env
 # Custom schedule
 ./scripts/deploy-backup-cron.sh --remote oci-agent --schedule "0 */6 * * *"
 
-# Remove the cron job
+# Remove the cron jobs
 ./scripts/deploy-backup-cron.sh --remote oci-agent --remove
 ```
 
@@ -85,7 +106,7 @@ Backups use the S3-compatible API with an AWS CLI profile named `oci`.
 | Namespace | `idxfevuczdaz` |
 | Endpoint | `https://idxfevuczdaz.compat.objectstorage.us-ashburn-1.oraclecloud.com` |
 | Auth | OCI Customer Secret Key (stored in AWS CLI `oci` profile) |
-| Lifecycle | Auto-delete objects under `wikijs/` after 30 days |
+| Lifecycle | Auto-delete objects under `wikijs/` and `hermes/` after 30 days |
 
 The bucket and IAM policy are managed by Terraform (`module.backup`).
 
@@ -95,11 +116,12 @@ Run before any infrastructure change (Terraform apply, OS update, etc.):
 
 ```bash
 ssh oci-agent "/home/opc/scripts/backup-wikijs.sh"
+ssh oci-agent "/home/opc/scripts/backup-hermes.sh"
 ```
 
 ## Restore Procedures
 
-### Restore database from OCI Object Storage
+### Wiki.js — Restore database from OCI Object Storage
 
 ```bash
 # List available backups
@@ -109,13 +131,13 @@ ssh oci-agent "/home/opc/scripts/backup-wikijs.sh --list"
 ssh oci-agent "/home/opc/scripts/backup-wikijs.sh --restore-db s3://agent-coder-dev-backups/wikijs/db/wikijs-db-YYYYMMDD-HHMMSS.sql.gz"
 ```
 
-### Restore database from local backup
+### Wiki.js — Restore database from local backup
 
 ```bash
 ssh oci-agent "/home/opc/scripts/backup-wikijs.sh --restore-db /mnt/workspace/backups/wikijs/wikijs-db-YYYYMMDD-HHMMSS.sql.gz"
 ```
 
-### Restore assets
+### Wiki.js — Restore assets
 
 Assets are backed up as tar.gz archives. To restore:
 
@@ -127,22 +149,44 @@ ssh oci-agent "export AWS_REQUEST_CHECKSUM_CALCULATION=when_required && export A
 ssh oci-agent "tar -xzf /tmp/wikijs-assets-YYYYMMDD-HHMMSS.tar.gz -C /mnt/workspace/wikijs/assets/"
 ```
 
+### Hermes — Restore
+
+```bash
+# List available backups
+ssh oci-agent "/home/opc/scripts/backup-hermes.sh --list"
+
+# Download from OCI
+ssh oci-agent "export AWS_REQUEST_CHECKSUM_CALCULATION=when_required && export AWS_RESPONSE_CHECKSUM_VALIDATION=when_required && aws s3 cp s3://agent-coder-dev-backups/hermes/data/hermes-data-YYYYMMDD-HHMMSS.tar.gz /tmp/ --profile oci --endpoint-url https://idxfevuczdaz.compat.objectstorage.us-ashburn-1.oraclecloud.com"
+
+# Stop Hermes container before restoring
+ssh oci-agent "podman stop hermes-agent"
+
+# Extract (restores entire hermes/ directory)
+ssh oci-agent "tar -xzf /tmp/hermes-data-YYYYMMDD-HHMMSS.tar.gz -C /mnt/workspace/"
+
+# Recreate .env from hermes-infra/config/.env.example (not included in backup)
+# Then restart Hermes
+ssh oci-agent "podman start hermes-agent"
+```
+
 ### Full recovery after instance re-image
 
 See [dataloss-mitigation.md](dataloss-mitigation.md) section 7 for the complete recovery checklist.
 
 ## Monitoring
 
-Check the backup log:
+Check the backup logs:
 
 ```bash
 ssh oci-agent "tail -20 /mnt/workspace/backups/wikijs/backup.log"
+ssh oci-agent "tail -20 /mnt/workspace/backups/hermes/backup.log"
 ```
 
-Verify the latest backup exists in OCI:
+Verify the latest backups exist in OCI:
 
 ```bash
 ssh oci-agent "/home/opc/scripts/backup-wikijs.sh --list"
+ssh oci-agent "/home/opc/scripts/backup-hermes.sh --list"
 ```
 
 ## Troubleshooting

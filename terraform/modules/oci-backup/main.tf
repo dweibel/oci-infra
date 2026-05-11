@@ -28,7 +28,7 @@ resource "oci_objectstorage_object_lifecycle_policy" "backup_retention" {
     target = "objects"
 
     object_name_filter {
-      inclusion_prefixes = ["wikijs/"]
+      inclusion_prefixes = ["wikijs/", "hermes/"]
     }
   }
 }
