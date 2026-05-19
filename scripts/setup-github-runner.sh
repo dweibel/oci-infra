@@ -6,7 +6,7 @@
 #
 # Prerequisites:
 #   1. Generate a runner registration token at:
-#      https://github.com/dweibel/gocoder/settings/actions/runners/new
+#      https://github.com/dweibel/foundry-core/settings/actions/runners/new
 #
 # Usage (from local machine):
 #   ssh oci-agent 'bash -s' < scripts/setup-github-runner.sh <TOKEN>
@@ -19,7 +19,7 @@
 set -euo pipefail
 
 TOKEN="${1:?Usage: $0 <GITHUB_RUNNER_REGISTRATION_TOKEN>}"
-REPO_URL="${2:-https://github.com/dweibel/gocoder}"
+REPO_URL="${2:-https://github.com/dweibel/foundry-core}"
 RUNNER_NAME="${3:-oci-arm64}"
 RUNNER_DIR="$HOME/actions-runner"
 

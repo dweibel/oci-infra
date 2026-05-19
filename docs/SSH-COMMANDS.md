@@ -178,7 +178,7 @@ ssh oci-agent "crontab -l"
 
 ```bash
 # 1. Get a registration token from:
-#    https://github.com/dweibel/gocoder/settings/actions/runners/new
+#    https://github.com/dweibel/foundry-core/settings/actions/runners/new
 # 2. Run the setup script remotely:
 ssh oci-agent 'bash -s' < scripts/setup-github-runner.sh <TOKEN>
 ```

@@ -9,7 +9,7 @@ The instance rebooted with a fresh OS. All data on the boot volume was destroyed
 ## What Was Lost
 
 - Wiki.js PostgreSQL database (~67 MB) — all wiki content
-- All podman containers and images (wikijs, keep-alive, cloudflared, goose-web, gocoder)
+- All podman containers and images (wikijs, keep-alive, cloudflared, goose-web, foundry-core)
 - All podman volumes (wikijs-pgdata, wikijs-assets, goose-config, workspace)
 - Podman secrets (database passwords, API keys)
 - User-level systemd units and cron jobs
