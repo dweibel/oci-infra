@@ -2,7 +2,7 @@
 
 ## Overview
 
-Wiki.js and Hermes data are backed up daily to OCI Object Storage via the S3-compatible API. Wiki.js backups include the PostgreSQL database and assets volume. Hermes backups include the data directory and config files. Local copies are staged on the block volume.
+Wiki.js, Hermes, and Forge data are backed up daily to OCI Object Storage via the S3-compatible API. Wiki.js backups include the PostgreSQL database and assets volume. Hermes backups include the data directory and config files. Forge backups include execution logs, state, and workspace repositories. Local copies are staged on the block volume.
 
 All persistent data lives on the 50 GB block volume (`/mnt/workspace`), which survives boot volume re-images and instance terminations.
 
@@ -13,6 +13,7 @@ All persistent data lives on the 50 GB block volume (`/mnt/workspace`), which su
 | PostgreSQL database | `wikijs-postgres` container | `pg_dump` gzipped SQL | ~10 KB (fresh), grows with content |
 | Wiki.js assets | `/mnt/workspace/wikijs/assets/` | tar.gz archive | Depends on uploads |
 | Hermes data | `/mnt/workspace/hermes/` (entire dir, excl. `.env`) | tar.gz archive | Sessions, config, agent state |
+| Forge data | `/mnt/workspace/forge/` (entire dir, excl. `.env`) | tar.gz archive | Execution logs, state, workspace repositories |
 
 ## Storage
 
@@ -21,6 +22,7 @@ All persistent data lives on the 50 GB block volume (`/mnt/workspace`), which su
 | OCI Object Storage (`agent-coder-dev-backups`) | 30 days (lifecycle policy) | Primary offsite backup |
 | Block volume (`/mnt/workspace/backups/wikijs/`) | 7 days (local prune) | Fast local restore (Wiki.js) |
 | Block volume (`/mnt/workspace/backups/hermes/`) | 7 days (local prune) | Fast local restore (Hermes) |
+| Block volume (`/mnt/workspace/backups/forge/`) | 7 days (local prune) | Fast local restore (Forge) |
 
 ## Schedule
 
@@ -33,6 +35,7 @@ ssh oci-agent "crontab -l"
 # Expected:
 # 0 8 * * * WIKIJS_BACKUP_BUCKET=agent-coder-dev-backups /home/opc/scripts/backup-wikijs.sh >> /mnt/workspace/backups/wikijs/backup.log 2>&1 # wikijs-backup
 # 0 8 * * * HERMES_BACKUP_BUCKET=agent-coder-dev-backups /home/opc/scripts/backup-hermes.sh >> /mnt/workspace/backups/hermes/backup.log 2>&1 # hermes-backup
+# 0 8 * * * FORGE_BACKUP_BUCKET=agent-coder-dev-backups /home/opc/scripts/backup-forge.sh >> /mnt/workspace/backups/forge/backup.log 2>&1 # forge-backup
 ```
 
 ## Scripts
@@ -81,6 +84,43 @@ Backs up the entire `/mnt/workspace/hermes/` directory (the container's `$HOME`/
 /home/opc/scripts/backup-hermes.sh --list
 ```
 
+### backup-forge.sh
+
+Located at `/home/opc/scripts/backup-forge.sh` on the instance and `scripts/backup-forge.sh` in the repo.
+
+Backs up the entire `/mnt/workspace/forge/` directory (data, workspaces), excluding `.env`. This captures execution logs, agent state, and cloned workspace repositories.
+
+```bash
+# Full backup to OCI Object Storage
+/home/opc/scripts/backup-forge.sh
+
+# Local backup only (no OCI upload, no credentials needed)
+/home/opc/scripts/backup-forge.sh --target local
+
+# List all backups (local + OCI)
+/home/opc/scripts/backup-forge.sh --list
+```
+
+**Restore:**
+
+```bash
+# List available backups
+ssh oci-agent "/home/opc/scripts/backup-forge.sh --list"
+
+# Download from OCI
+ssh oci-agent "export AWS_REQUEST_CHECKSUM_CALCULATION=when_required && export AWS_RESPONSE_CHECKSUM_VALIDATION=when_required && aws s3 cp s3://agent-coder-dev-backups/forge/data/forge-data-YYYYMMDD-HHMMSS.tar.gz /tmp/ --profile oci --endpoint-url https://idxfevuczdaz.compat.objectstorage.us-ashburn-1.oraclecloud.com"
+
+# Stop Forge container before restoring
+ssh oci-agent "podman stop forge"
+
+# Extract (restores entire forge/ directory)
+ssh oci-agent "tar -xzf /tmp/forge-data-YYYYMMDD-HHMMSS.tar.gz -C /mnt/workspace/"
+
+# Recreate .env from oci-infra/config/forge.env.example (not included in backup)
+# Then restart Forge
+ssh oci-agent "podman start forge"
+```
+
 ### deploy-backup-cron.sh
 
 Installs both backup scripts and cron jobs on the instance. Configures the AWS CLI `oci` profile for S3-compatible access.
@@ -117,6 +157,7 @@ Run before any infrastructure change (Terraform apply, OS update, etc.):
 ```bash
 ssh oci-agent "/home/opc/scripts/backup-wikijs.sh"
 ssh oci-agent "/home/opc/scripts/backup-hermes.sh"
+ssh oci-agent "/home/opc/scripts/backup-forge.sh"
 ```
 
 ## Restore Procedures
@@ -180,6 +221,7 @@ Check the backup logs:
 ```bash
 ssh oci-agent "tail -20 /mnt/workspace/backups/wikijs/backup.log"
 ssh oci-agent "tail -20 /mnt/workspace/backups/hermes/backup.log"
+ssh oci-agent "tail -20 /mnt/workspace/backups/forge/backup.log"
 ```
 
 Verify the latest backups exist in OCI:
@@ -187,6 +229,7 @@ Verify the latest backups exist in OCI:
 ```bash
 ssh oci-agent "/home/opc/scripts/backup-wikijs.sh --list"
 ssh oci-agent "/home/opc/scripts/backup-hermes.sh --list"
+ssh oci-agent "/home/opc/scripts/backup-forge.sh --list"
 ```
 
 ## Troubleshooting

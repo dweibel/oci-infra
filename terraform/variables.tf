@@ -74,6 +74,12 @@ variable "extra_ports" {
   default     = []
 }
 
+variable "public_tcp_ports" {
+  description = "TCP ports to open from 0.0.0.0/0 (e.g., webhook endpoints reachable by external services)"
+  type        = list(number)
+  default     = []
+}
+
 # Compute Configuration
 variable "availability_domain" {
   description = "Availability domain for the instance (leave empty to use first available)"

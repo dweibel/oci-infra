@@ -21,6 +21,7 @@ subnet_cidr = "10.0.1.0/24"
 allowed_ssh_cidrs  = ["76.27.163.65/32"]
 allowed_http_cidrs = ["76.27.163.65/32"]
 extra_ports        = [3000, 3001]
+public_tcp_ports   = [8082]
 
 # Compute Configuration
 availability_domain = "fBMf:US-ASHBURN-AD-1"

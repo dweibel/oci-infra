@@ -78,6 +78,21 @@ resource "oci_core_security_list" "public" {
     }
   }
 
+  dynamic "ingress_security_rules" {
+    for_each = var.public_tcp_ports
+    content {
+      protocol    = "6" # TCP
+      source      = "0.0.0.0/0"
+      source_type = "CIDR_BLOCK"
+      stateless   = false
+
+      tcp_options {
+        min = ingress_security_rules.value
+        max = ingress_security_rules.value
+      }
+    }
+  }
+
   # Egress rules - allow all outbound
   egress_security_rules {
     protocol         = "all"

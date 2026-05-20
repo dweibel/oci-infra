@@ -40,6 +40,7 @@ module "network" {
   allowed_http_cidrs = var.allowed_http_cidrs
   http_port          = var.app_port
   extra_ports        = var.extra_ports
+  public_tcp_ports   = var.public_tcp_ports
 }
 
 # Compute Module

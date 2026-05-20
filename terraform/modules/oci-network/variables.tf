@@ -44,3 +44,9 @@ variable "extra_ports" {
   type        = list(number)
   default     = []
 }
+
+variable "public_tcp_ports" {
+  description = "TCP ports to open from 0.0.0.0/0 (e.g., webhook endpoints reachable by external services)"
+  type        = list(number)
+  default     = []
+}
