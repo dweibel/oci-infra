@@ -4,6 +4,10 @@ set -euo pipefail
 # Deploy the Forge container to the OCI ARM64 instance.
 # Builds the image locally for linux/arm64, transfers via SCP, and starts the container.
 #
+# Backend: Kiro CLI headless mode (replaces OpenRouter/Claude Agent SDK).
+# Requires a Kiro Pro subscription (or higher) for headless API key access.
+# Generate API key at: Kiro portal → Settings → API Keys
+#
 # Usage:
 #   ./scripts/deploy-forge.sh                        # uses default ../forge relative to script
 #   ./scripts/deploy-forge.sh --forge-dir ~/forge    # explicit Forge project path
@@ -13,6 +17,12 @@ set -euo pipefail
 #   - SSH host 'oci-agent' configured in ~/.ssh/config
 #   - /mnt/workspace/forge/ directory created on instance (see scripts/setup-forge-dirs.sh)
 #   - /mnt/workspace/forge/.env populated with secrets (see config/forge.env.example)
+#   - KIRO_API_KEY set in .env (Kiro Pro subscription or higher required)
+#
+# Volume mounts:
+#   - /mnt/workspace/forge/data → /data/forge (execution log, kiro-home)
+#   - /mnt/workspace/forge/workspaces → /workspaces (task-specific workspaces)
+#   - /mnt/workspace → /workspace (shared workspace root for kiro-cli task execution)
 #
 # FORGE_URL uses http://localhost:3100 because Forge is a localhost-only service
 # on the same OCI instance — no external access via Cloudflare tunnel.
@@ -134,8 +144,9 @@ ssh "$SSH_HOST" "podman run -d \
     --restart unless-stopped \
     --env-file /mnt/workspace/forge/.env \
     -p 127.0.0.1:3100:3100 \
-    -v /mnt/workspace/forge/data:/data/forge:Z \
-    -v /mnt/workspace/forge/workspaces:/workspaces:Z \
+    --volume /mnt/workspace/forge/data:/data/forge:Z \
+    --volume /mnt/workspace/forge/workspaces:/workspaces:Z \
+    --volume /mnt/workspace:/workspace:Z \
     ${IMAGE_TAG}"
 
 echo "Container '${CONTAINER_NAME}' started."
