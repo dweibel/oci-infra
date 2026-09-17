@@ -1,0 +1,51 @@
+# OKF Software Engineering Profile v1
+# For Oracle Cloud Infrastructure Infrastructure
+
+# Engineering concept types
+concept_types:
+  - Software Project
+  - Objective
+  - Key Result
+  - Requirement
+  - OpenSpec Change
+  - Architecture Component
+  - Interface Contract
+  - Architecture Decision
+  - Risk
+  - Gherkin Feature
+  - Test Contract
+  - Test Readiness Evidence
+  - Test Procedure
+  - Test Dataset
+  - Test Evidence
+  - Runbook
+  - Incident Lesson
+  - Attested Computation
+  - Reference
+
+# OpenSpec integration
+openspec:
+  change_schemas:
+    verification: openspec/schemas/okf-verification-change/
+    implementation: openspec/schemas/okf-implementation-change/
+  path_prefix: openspec/
+  
+# Gherkin integration
+gherkin:
+  feature_paths:
+    component: tests/component/features/
+    integration: tests/integration/features/
+  step_paths:
+    component: tests/component/steps/
+    integration: tests/integration/steps/
+  tag_resolution:
+    requirement_prefix: "@requirement_"
+    qualified_format: "@requirement_{bundle_id}__{concept_id}"
+    
+# OKF knowledge structure
+knowledge:
+  root: knowledge/
+  required_indexes:
+    - knowledge/index.md
+    - knowledge/log.md
+    - knowledge/project.md

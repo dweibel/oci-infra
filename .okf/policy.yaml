@@ -1,0 +1,98 @@
+# OKF Engineering Policy for Infrastructure
+# Based on FEDERATED-OKF-KNOWLEDGE-AND-VERIFICATION-PROPOSAL.md
+
+validation:
+  # Concept type validation
+  require_ids: true
+  allowed_concept_types:
+    - Software Project
+    - Objective
+    - Key Result
+    - Requirement
+    - OpenSpec Change
+    - Architecture Component
+    - Interface Contract
+    - Architecture Decision
+    - Risk
+    - Gherkin Feature
+    - Test Contract
+    - Test Readiness Evidence
+    - Test Procedure
+    - Test Dataset
+    - Test Evidence
+    - Runbook
+    - Incident Lesson
+    - Attested Computation
+    - Reference
+
+  # Infrastructure-specific validation
+  infrastructure_specific:
+    require_cost_impact_assessment: true
+    require_security_review: true
+    require_disaster_recovery_plan: true
+
+  # OpenSpec integration
+  openspec_change_validation:
+    verification_requires_gherkin: true
+    implementation_requires_verification: true
+    frozen_changes_readonly: true
+
+  # Evidence requirements
+  evidence:
+    require_revision_pinning: true
+    require_digest_for_frozen: true
+    reject_mixed_revisions: true
+
+federation:
+  # Cross-bundle reference rules
+  allow_cross_bundle_links: true
+  require_okf_uris_for_external: true
+  validate_dependency_existence: true
+
+  # Ecosystem dependencies
+  ecosystem_bundle_required: true
+  dependency_resolution: strict
+
+workflow:
+  # Infrastructure change workflow
+  infrastructure_changes_require_approval: true
+  production_changes_require_rollback_plan: true
+  emergency_changes_require_postmortem: true
+
+  # Verification-first workflow
+  independent_verification_required: true
+  test_amendment_required_for_changes: true
+  no_implementation_without_frozen_tests: true
+
+  # Trust levels
+  trust_levels:
+    draft: agent_generated
+    ready: machine_validated
+    frozen: human_reviewed
+    archived: immutable
+
+  # Promotion rules
+  allow_agent_drafts: true
+  require_human_review_for_frozen: true
+  require_security_review_for_infrastructure: true
+  no_auto_promotion: true
+
+security:
+  # Infrastructure security
+  require_least_privilege_access: true
+  require_secret_rotation_policy: true
+  require_network_segmentation: true
+
+  # Reference safety
+  reject_untrusted_content_as_authority: true
+  require_authenticated_invocation_for_write: true
+
+  # Secret safety
+  reject_secrets_in_bundles: true
+  task_specific_credentials_only: true
+  infrastructure_secrets_encrypted: true
+
+  # Execution boundaries
+  development_commands_in_isolated_worker: true
+  no_exposure_of_unrelated_data: true
+  infrastructure_changes_require_approval: true
