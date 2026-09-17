@@ -1,11 +1,11 @@
 profile: okf-software-engineering/v1
 bundle:
-  id: com.github.dirkweibel.oci-infrastructure
+  id: com.github.dweibel.oci-infrastructure
   title: Oracle Cloud Infrastructure Infrastructure
   kind: project
-  repository: https://github.com/dirkweibel/oci-infra.git
+  repository: https://github.com/dweibel/oci-infra.git
   default_branch: main
 federation:
   dependencies:
-    - id: com.github.dirkweibel.engineering-ecosystem
+    - id: com.github.dweibel.engineering-ecosystem
       repository: file:///mnt/c/Users/dirkw/Workspace/agentic/engineering-ecosystem
